@@ -7,6 +7,7 @@ import {
   Sunrise, Coffee, Footprints, Egg, Droplets, Utensils, Activity,
   Dumbbell, Moon, BedDouble, Check, Plus, Minus, ChevronLeft,
   ChevronRight, Flame, Target, CalendarDays, ListChecks, TrendingDown,
+  Download, Share, X, Smartphone,
 } from "lucide-react";
 
 /* ----------------------------------------------------------------
@@ -338,6 +339,7 @@ export default function App() {
         </div>
 
         <Nav tab={tab} setTab={setTab} />
+        <InstallPrompt />
       </div>
     </div>
   );
@@ -970,6 +972,148 @@ function Nav({ tab, setTab }) {
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------- INSTALL / ADD-TO-HOME PROMPT ----------------------- */
+function isStandalone() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    window.navigator?.standalone === true
+  );
+}
+function isIOS() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return (
+    /iphone|ipad|ipod/i.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) // iPadOS
+  );
+}
+
+/* Pops on every open (until installed): native install on Android / Chrome / Edge,
+   "Add to Home Screen" hints on iOS, and a generic menu hint elsewhere. */
+function InstallPrompt() {
+  const deferredRef = useRef(null);
+  const [mode, setMode] = useState(null); // "native" | "ios" | "manual"
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (isStandalone()) return; // already installed → never nag
+    const iOS = isIOS();
+
+    const onBIP = (e) => {
+      e.preventDefault();
+      deferredRef.current = e;
+      setMode("native");
+      setShow(true);
+    };
+    const onInstalled = () => {
+      deferredRef.current = null;
+      setShow(false);
+    };
+    window.addEventListener("beforeinstallprompt", onBIP);
+    window.addEventListener("appinstalled", onInstalled);
+
+    let t;
+    if (iOS) {
+      setMode("ios");
+      t = setTimeout(() => setShow(true), 700);
+    } else {
+      // browsers that never fire beforeinstallprompt still get a nudge
+      t = setTimeout(() => {
+        if (!deferredRef.current) {
+          setMode("manual");
+          setShow(true);
+        }
+      }, 1600);
+    }
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBIP);
+      window.removeEventListener("appinstalled", onInstalled);
+      clearTimeout(t);
+    };
+  }, []);
+
+  if (!show) return null;
+
+  const install = async () => {
+    const d = deferredRef.current;
+    if (!d) return;
+    d.prompt();
+    try { await d.userChoice; } catch (e) { /* dismissed */ }
+    deferredRef.current = null;
+    setShow(false);
+  };
+
+  const hint = {
+    position: "relative", marginTop: 12, padding: "11px 12px",
+    background: C.surface2, border: `1px solid ${C.line}`, borderRadius: 12,
+    fontSize: 12.5, color: C.text, lineHeight: 1.5,
+  };
+
+  return (
+    <div style={{ position: "fixed", left: 0, right: 0, bottom: 84, display: "flex",
+      justifyContent: "center", zIndex: 50, pointerEvents: "none", padding: "0 12px" }}>
+      <div style={{ width: "100%", maxWidth: 416, pointerEvents: "auto", background: C.surface,
+        border: `1px solid ${C.accentLine}`, borderRadius: 18, padding: 16,
+        boxShadow: "0 16px 44px rgba(0,0,0,0.55)", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0,
+          background: `radial-gradient(120% 90% at 100% 0%, ${C.accentSoft} 0%, transparent 55%)` }} />
+        <button aria-label="Dismiss" onClick={() => setShow(false)} style={{
+          position: "absolute", top: 10, right: 10, width: 26, height: 26, borderRadius: 8,
+          background: "none", border: "none", color: C.faint, cursor: "pointer", zIndex: 1,
+          display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <X size={16} />
+        </button>
+
+        <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: C.accentSoft,
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Smartphone size={22} color={C.accent} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0, paddingRight: 18 }}>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>Install The Cut</div>
+            <div style={{ fontSize: 12, color: C.sub, marginTop: 2, lineHeight: 1.35 }}>
+              Add it to your {mode === "ios" ? "home screen" : "device"} for full-screen,
+              one-tap, offline access.
+            </div>
+          </div>
+        </div>
+
+        {mode === "native" && (
+          <div style={{ position: "relative", display: "flex", gap: 8, marginTop: 14 }}>
+            <button onClick={() => setShow(false)} style={{
+              flex: 1, padding: "11px 0", borderRadius: 11, background: C.surface2,
+              border: `1px solid ${C.line}`, color: C.sub, fontSize: 13.5, fontWeight: 600,
+              cursor: "pointer", fontFamily: SANS }}>
+              Maybe later
+            </button>
+            <button onClick={install} style={{
+              flex: 1.4, padding: "11px 0", borderRadius: 11, background: C.accent, border: "none",
+              color: C.ink, fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: SANS,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+              <Download size={16} /> Install app
+            </button>
+          </div>
+        )}
+
+        {mode === "ios" && (
+          <div style={hint}>
+            Tap <Share size={14} color={C.accent} style={{ verticalAlign: "-2px" }} />{" "}
+            <b>Share</b>, then <b>“Add to Home Screen”</b>.
+          </div>
+        )}
+
+        {mode === "manual" && (
+          <div style={hint}>
+            Open your browser menu and choose <b>“Install app”</b> or{" "}
+            <b>“Add to Home Screen”</b>.
+          </div>
+        )}
       </div>
     </div>
   );

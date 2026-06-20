@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gen:icons": "node scripts/gen-icons.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.469.0",
@@ -16,6 +17,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^6.0.7"
+    "sharp": "^0.35.2",
+    "vite": "^6.0.7",
+    "vite-plugin-pwa": "^1.3.0"
   }
 }
